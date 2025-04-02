@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>✨ Neon Particle Playground</title>
+    <style>
+        :root {
+            --bg-dark: #0a0a14;
+            --bg-light: #f5f5ff;
+            --neon-blue: #0af;
+            --neon-pink: #f0f;
+            --neon-green: #0f6;
+            --neon-purple: #90f;
+            --text-dark: #eee;
+            --text-light: #222;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-dark);
+            transition: background 0.5s;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        .controls {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(10, 10, 20, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0, 170, 255, 0.3);
+            backdrop-filter: blur(5px);
+            transition: all 0.3s;
+            z-index: 100;
+        }
+
+        .controls:hover {
+            box-shadow: 0 0 25px rgba(0, 170, 255, 0.5);
+        }
+
+        h1 {
+            margin: 0 0 10px;
+            font-size: 1.5rem;
+            color: var(--neon-blue);
+            text-shadow: 0 0 10px var(--neon-blue);
+        }
+
+        label {
+            display: block;
+            margin: 8px 0 4px;
+            font-size: 0.9rem;
+            color: var(--text-dark);
+        }
+
+        input[type="range"], select, button {
+            width: 100%;
+            margin-bottom: 10px;
+            background: rgba(20, 20, 40, 0.8);
+            border: 1px solid var(--neon-blue);
+            border-radius: 5px;
+            color: var(--text-dark);
+            padding: 5px;
+        }
+
+        button {
+            background: var(--neon-purple);
+            border: none;
+            color: white;
+            padding: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background: var(--neon-pink);
+            transform: scale(1.02);
+        }
+
+        .color-options {
+            display: flex;
+            gap: 8px;
+            margin: 10px 0;
+        }
+
+        .color-option {
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.2s;
+        }
+
+        .color-option:hover {
+            transform: scale(1.1);
+        }
+
+        .color-option.active {
+            border-color: white;
+            box-shadow: 0 0 10px currentColor;
+        }
+
+        .toggle-dark {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(10, 10, 20, 0.7);
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 100;
+            box-shadow: 0 0 10px rgba(0, 170, 255, 0.3);
+        }
+
+        body.light-mode {
+            background: var(--bg-light);
+            color: var(--text-light);
+        }
+
+        body.light-mode .controls {
+            background: rgba(245, 245, 255, 0.7);
+        }
+
+        body.light-mode label {
+            color: var(--text-light);
+        }
+
+        body.light-mode input[type="range"], 
+        body.light-mode select {
+            background: rgba(220, 220, 240, 0.8);
+            border-color: var(--neon-pink);
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <div class="controls">
+        <h1>✨ Neon Particle Playground</h1>
+        
+        <label for="particleCount">Particles: <span id="countValue">100</span></label>
+        <input type="range" id="particleCount" min="10" max="500" value="100">
+        
+        <label for="gravity">Gravity: <span id="gravityValue">0.1</span></label>
+        <input type="range" id="gravity" min="-0.5" max="0.5" step="0.01" value="0.1">
+        
+        <label for="speed">Speed: <span id="speedValue">2</span></label>
+        <input type="range" id="speed" min="0.1" max="5" step="0.1" value="2">
+        
+        <label>Particle Color:</label>
+        <div class="color-options">
+            <div class="color-option active" style="background: var(--neon-blue);" data-color="#0af"></div>
+            <div class="color-option" style="background: var(--neon-pink);" data-color="#f0f"></div>
+            <div class="color-option" style="background: var(--neon-green);" data-color="#0f6"></div>
+            <div class="color-option" style="background: var(--neon-purple);" data-color="#90f"></div>
+        </div>
+        
+        <button id="resetBtn">Reset Particles</button>
+    </div>
+    
+    <button class="toggle-dark" id="darkModeToggle">🌓</button>
+    
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Set canvas size
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        // Settings
+        let particleCount = 100;
+        let gravity = 0.1;
+        let speed = 2;
+        let particleColor = '#0af';
+        
+        // Particles array
+        let particles = [];
+        
+        // Particle class
+        class Particle {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.size = Math.random() * 3 + 1;
+                this.density = Math.random() * 10 + 1;
+                this.vx = (Math.random() - 0.5) * speed;
+                this.vy = (Math.random() - 0.5) * speed;
+            }
+            
+            update() {
+                // Apply gravity
+                this.vy += gravity;
+                
+                // Update position
+                this.x += this.vx;
+                this.y += this.vy;
+                
+                // Bounce off walls
+                if (this.x < 0 || this.x > canvas.width) this.vx *= -0.8;
+                if (this.y < 0 || this.y > canvas.height) this.vy *= -0.8;
+                
+                // Keep particles on screen
+                this.x = Math.max(0, Math.min(canvas.width, this.x));
+                this.y = Math.max(0, Math.min(canvas.height, this.y));
+            }
+            
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = particleColor;
+                ctx.globalAlpha = 0.8;
+                ctx.fill();
+                
+                // Glow effect
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = particleColor;
+            }
+        }
+        
+        // Initialize particles
+        function initParticles() {
+            particles = [];
+            for (let i = 0; i < particleCount; i++) {
+                particles.push(new Particle());
+            }
+        }
+        
+        // Connect close particles
+        function connectParticles() {
+            for (let a = 0; a < particles.length; a++) {
+                for (let b = a; b < particles.length; b++) {
+                    const dx = particles[a].x - particles[b].x;
+                    const dy = particles[a].y - particles[b].y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < 100) {
+                        ctx.beginPath();
+                        ctx.strokeStyle = particleColor;
+                        ctx.globalAlpha = 1 - distance / 100;
+                        ctx.lineWidth = 0.5;
+                        ctx.moveTo(particles[a].x, particles[a].y);
+                        ctx.lineTo(particles[b].x, particles[b].y);
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+        
+        // Animation loop
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Update and draw particles
+            for (let particle of particles) {
+                particle.update();
+                particle.draw();
+            }
+            
+            connectParticles();
+            
+            requestAnimationFrame(animate);
+        }
+        
+        // Event listeners for controls
+        document.getElementById('particleCount').addEventListener('input', function() {
+            particleCount = this.value;
+            document.getElementById('countValue').textContent = particleCount;
+            initParticles();
+        });
+        
+        document.getElementById('gravity').addEventListener('input', function() {
+            gravity = parseFloat(this.value);
+            document.getElementById('gravityValue').textContent = gravity.toFixed(2);
+        });
+        
+        document.getElementById('speed').addEventListener('input', function() {
+            speed = parseFloat(this.value);
+            document.getElementById('speedValue').textContent = speed;
+            initParticles();
+        });
+        
+        document.getElementById('resetBtn').addEventListener('click', initParticles);
+        
+        // Color selection
+        document.querySelectorAll('.color-option').forEach(option => {
+            option.addEventListener('click', function() {
+                document.querySelectorAll('.color-option').forEach(opt => opt.classList.remove('active'));
+                this.classList.add('active');
+                particleColor = this.dataset.color;
+            });
+        });
+        
+        // Dark/light mode toggle
+        document.getElementById('darkModeToggle').addEventListener('click', function() {
+            document.body.classList.toggle('light-mode');
+        });
+        
+        // Handle window resize
+        window.addEventListener('resize', function() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            initParticles();
+        });
+        
+        // Mouse interaction
+        canvas.addEventListener('mousemove', function(event) {
+            const mouseX = event.clientX;
+            const mouseY = event.clientY;
+            
+            for (let particle of particles) {
+                const dx = mouseX - particle.x;
+                const dy = mouseY - particle.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < 100) {
+                    particle.vx = dx * 0.02;
+                    particle.vy = dy * 0.02;
+                }
+            }
+        });
+        
+        // Start everything
+        initParticles();
+        animate();
+    </script>
+</body>
+</html>
